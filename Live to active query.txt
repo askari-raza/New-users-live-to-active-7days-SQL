@@ -1,0 +1,38 @@
+SELECT  COUNT(CASE WHEN days_until_firstorder <= 7 THEN user_id END) AS newuser_with_orders7d
+        ,COUNT(user_id) AS total_new_affil
+        ,ROUND(COUNT(CASE WHEN days_until_firstorder <= 7 THEN user_id END) / COUNT(user_id),2) AS live_active_7d --COUNT(DISTINCT CASE WHEN days_until_firstorder <= 7 then affiliate_id else null) end as affiliates_with_orders_within7,
+        ,venture
+        ,SUBSTR(joining_date,1,6) AS joining_month
+FROM    (
+            SELECT  a.user_id
+                    ,a.joining_date
+                    ,a.venture
+                    ,b.first_order_date
+                    ,DATEDIFF(TO_DATE(b.first_order_date,'yyyymmdd'),TO_DATE(a.joining_date,'yyyymmdd'),'dd') AS days_until_firstorder ---  as diff_firstorder_join
+                    -- b.parent_order_id
+            FROM    (
+                        SELECT  MIN(ds) AS joining_date
+                                ,user_id
+                                ,venture
+                        FROM    new_user_details
+                        WHERE   venture IN ('PK','LK','BD')
+                        AND     segment_type IN ('Influencer')
+                        GROUP BY user_id
+                                 ,venture
+                    ) AS a
+            LEFT JOIN   (
+                            SELECT  MIN(TO_CHAR(order_create_date,'yyyymmdd')) AS first_order_date
+                                    ,user_id
+                                    ,venture
+                            FROM    delivered_orders_table
+                            GROUP BY user_id
+                                     ,venture
+                        ) AS b
+            ON      a.user_id = b.user_id
+            AND     a.venture = b.venture
+            WHERE   a.joining_date > 20220813
+        )  --where days_until_firstorder is not null
+GROUP BY venture
+         ,SUBSTR(joining_date,1,6)
+;
+
